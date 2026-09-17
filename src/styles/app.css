@@ -1,0 +1,124 @@
+/* ============================================================================
+ * app.css — 四片式舞台幕布，对应 01–04。
+ * 点一片 → 整道幕布升起(从被点那片波浪式带起)→ 露出后面的内容舞台。返回 → 幕布落下。
+ * 章节大 title 用 decode 解码效果(赛博朋克 2077 味),全程保留。
+ * ==========================================================================*/
+
+#stage { position: fixed; inset: 0; z-index: 2; overflow: hidden; }
+
+/* ====== 后台(被幕布盖住;掀开后露出的内容舞台)====== */
+/* perspective 给大卡片 3D 翻起留景深;.room 默认 opacity:0(幕布升起后才由 GSAP 翻入) */
+.backstage { position: absolute; inset: 0; z-index: 1; display: flex; align-items: stretch; justify-content: center; padding: 64px 3.5vw 48px; perspective: 1800px; }
+.room { width: 100%; max-width: 1680px; display: flex; flex-direction: column; border: 1px solid var(--matrix-dim); border-radius: 22px; background: rgba(5,8,6,.78); box-shadow: inset 0 0 120px rgba(0,255,65,.04), 0 40px 120px rgba(0,0,0,.6); padding: 30px 44px 38px; overflow: hidden; opacity: 0; transform-style: preserve-3d; }
+.room.cross { border-color: rgba(217,119,87,.5); box-shadow: inset 0 0 120px rgba(217,119,87,.05), 0 40px 120px rgba(0,0,0,.6); }
+.room-head { position: relative; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid var(--matrix-dim); padding-bottom: 14px; }
+.room-head-text { align-self: baseline; }
+/* 入口按钮(如第②幕 handoff skill):上下对齐标题行,左右相对页面固定居中 */
+.room-head-btn { position: fixed; left: 50%; transform: translateX(-50%); z-index: 20; font-family: var(--mono); font-size: clamp(12px,1.3vw,16px); font-weight: 700; color: var(--matrix); background: rgba(0,255,65,.08); border: 1px solid var(--matrix-dim); border-radius: 10px; padding: 9px 16px; cursor: pointer; white-space: nowrap; transition: border-color .2s, transform .12s, box-shadow .2s; }
+.room-head-btn:hover { border-color: var(--matrix); box-shadow: 0 0 18px rgba(0,255,65,.25); }
+.room-num { font-family: var(--mono); font-weight: 800; font-size: clamp(26px,2.8vw,44px); line-height: 1; color: var(--accent); }
+.b-title { font-size: clamp(22px,2.8vw,42px); font-weight: 800; color: var(--ink); line-height: 1.1; letter-spacing: -.01em; min-height: 1.1em; }   /* detail 大 title(decode 解码;留空由 JS 填,防闪) */
+.room-layer { font-family: var(--mono); font-size: clamp(12px,1.2vw,16px); color: var(--matrix); opacity: .85; margin-top: 6px; }
+.room.cross .room-layer { color: var(--accent); }
+.room-oneliner { font-size: clamp(13px,1.4vw,18px); color: var(--ink-soft); margin-top: 10px; max-width: 76ch; }
+.room-body { flex: 1; min-height: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 22px; }
+.room-ph { font-family: var(--mono); font-size: clamp(15px,1.6vw,22px); letter-spacing: .08em; color: var(--ink-soft); opacity: .5; border: 1.5px dashed var(--matrix-dim); border-radius: 16px; padding: 44px 64px; text-align: center; line-height: 1.9; }
+
+/* ====== 幕布:4 片竖条 ====== */
+.curtain { position: absolute; inset: 0; z-index: 2; display: flex; perspective: 2000px; }   /* 景深:让幕布 3D 翻落可见 */
+/* 幕布升走后(open 态)容器不拦截点击 —— 否则其铺满 inset:0 的盒子会盖住 backstage 的内容/按钮 */
+.curtain.lifted { pointer-events: none; }
+.panel {
+  flex: 1; min-width: 0; position: relative; height: 100%;
+  transform-origin: top; will-change: transform;   /* transform 留给 GSAP 掀幕动画 */
+  border-right: 1px solid rgba(0,0,0,.5);
+  background:
+    linear-gradient(180deg, rgba(13,59,30,.30), rgba(6,12,8,.66)),
+    repeating-linear-gradient(180deg, rgba(0,255,65,.04) 0 2px, transparent 2px 6px);
+}
+.panel:last-child { border-right: none; }
+.panel.cross { background:
+    linear-gradient(180deg, rgba(217,119,87,.14), rgba(8,6,5,.6)),
+    repeating-linear-gradient(180deg, rgba(217,119,87,.05) 0 2px, transparent 2px 6px); }
+
+/* 内层:hover 效果放这里(panel 的 transform 被 GSAP 占用,避免打架)。z-index 1 压在字符流(0)之上 */
+.panel-inner {
+  position: absolute; inset: 0; z-index: 1; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  padding: 48px 22px; text-align: center;
+  border-right: 1px solid var(--matrix-dim);
+  transition: background .3s, box-shadow .3s, transform .2s;
+}
+.panel:last-child .panel-inner { border-right: none; }
+.panel-inner { width: 100%; color: inherit; font: inherit; background: transparent; border-left: 0; border-top: 0; border-bottom: 0; border-radius: 0; }
+.panel-inner:focus-visible { outline: 2px solid var(--accent); outline-offset: -8px; }
+.chapter-stage { position: absolute; inset: 0; transform-style: preserve-3d; }
+.btn:disabled { opacity: .4; cursor: default; }
+.panel-inner:hover { background: rgba(0,255,65,.05); box-shadow: inset 0 0 80px rgba(0,255,65,.08); }
+.panel.cross .panel-inner:hover { background: rgba(217,119,87,.08); box-shadow: inset 0 0 80px rgba(217,119,87,.12); }
+.panel-inner:hover .p-arrow { opacity: .9; transform: translateY(6px); }
+
+.p-num { font-family: var(--mono); font-weight: 800; font-size: clamp(38px,4.4vw,72px); line-height: 1; color: var(--accent); }
+.p-title { font-size: clamp(20px,2vw,32px); font-weight: 740; color: var(--ink); line-height: 1.3; max-width: 11ch; }   /* 竖条标题(静态,无 decode) */
+.p-short { font-family: var(--mono); font-size: clamp(12px,1.2vw,16px); color: var(--ink-soft); }
+.p-layer { margin-top: 8px; font-family: var(--mono); font-size: clamp(11px,1.1vw,14px); letter-spacing: .08em; color: var(--matrix); opacity: .7; }
+.panel.cross .p-layer { color: var(--accent); }
+.p-arrow { font-family: var(--mono); font-size: 22px; color: var(--matrix); opacity: .4; transition: opacity .25s, transform .25s; }
+.panel.cross .p-arrow { color: var(--accent); }
+
+/* ====== 标题面，保留原舞台视觉；直接进入幕布总览 ====== */
+.flip-scene {
+  position: absolute; inset: 0; z-index: 5;
+  perspective: 2200px;                 /* 翻牌景深 */
+  transition: opacity .4s ease;
+}
+.flip-scene.gone { opacity: 0; pointer-events: none; }
+.flip-card {
+  position: absolute; inset: 0;
+  transform-style: preserve-3d;
+}
+.flip-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.flip-front { background: radial-gradient(120% 90% at 50% 40%, rgba(8,14,9,.4), rgba(5,7,5,.92)); }
+
+/* 标题面内容 */
+.title-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 26px; padding: 6vh 8vw; }
+.title-overlay .eyebrow { font-family: var(--mono); font-size: clamp(14px,1.5vw,25px); letter-spacing: .2em; text-transform: uppercase; color: var(--matrix); opacity: .85; }
+.title-overlay h1 { font-size: clamp(34px,5.2vw,78px); font-weight: 820; line-height: 1.08; letter-spacing: -.01em; color: var(--ink); max-width: 18ch; }
+.title-overlay .sub { font-size: clamp(16px,2vw,30px); color: var(--ink-soft); max-width: 44ch; }
+.title-overlay .byline { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: clamp(13px,1.4vw,20px); letter-spacing: .08em; color: var(--matrix); }
+.title-overlay .byline .by-name { font-weight: 700; }
+.title-overlay .byline .by-dot { opacity: .5; }
+.title-overlay .byline .by-date { color: var(--ink-soft); }
+.title-overlay .enter { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; flex-shrink: 0; margin-top: 18px; color: var(--bg); background: var(--matrix); border: none; border-radius: 50%; padding: 0; cursor: pointer; box-shadow: 0 0 50px rgba(0,255,65,.3); transition: transform .14s, box-shadow .25s; }
+.title-overlay .enter:hover { transform: translateY(-3px); box-shadow: 0 0 70px rgba(0,255,65,.45); }
+.title-overlay .enter:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+/* ====== 数字大字报(困惑墙侧支线,盖在最上层)====== */
+.numbers-scene { position: absolute; inset: 0; z-index: 6; }
+/* ====== 尾幕(04 的最后一个视图进入)====== */
+.tail-scene { position: absolute; inset: 0; z-index: 6; }
+
+/* ====== 固定 UI ====== */
+#topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 16px 22px; pointer-events: none; }
+#topbar .brand { font-family: var(--mono); font-size: 14px; color: var(--matrix); opacity: .55; }
+#topbar .spacer { flex: 1; }
+.btn { pointer-events: auto; font-family: var(--mono); font-size: 14px; cursor: pointer; background: rgba(5,7,5,.62); border: 1px solid var(--matrix-dim); border-radius: 9px; padding: 8px 15px; color: var(--ink-soft); backdrop-filter: blur(4px); transition: border-color .2s, color .2s, transform .1s; }
+.btn:hover { border-color: var(--matrix); color: var(--ink); }
+.btn:active { transform: scale(.96); }
+.btn.accent { color: var(--accent); border-color: var(--accent); }
+#hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 30; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); opacity: .4; pointer-events: none; }
+
+/* Same centered flip face, with an explicit type scale for the longer title. */
+.title-overlay h1.harness-title { max-width: 1100px; font-size: 58px; line-height: 1.14; letter-spacing: 0; }
+.title-turn { display: inline-block; color: var(--accent-soft); font-size: 42px; margin-top: 16px; }
+.p-title { display: flex; align-items: center; justify-content: center; height: 2.6em; flex-shrink: 0; max-width: 100%; white-space: pre-line; text-wrap: balance; }
+.evidence-link { font: 14px var(--mono); color: var(--accent-soft); border: 1px solid var(--matrix-dim); background: rgba(6,12,8,.7); border-radius: 8px; padding: 9px 15px; cursor: pointer; align-self: flex-start; }
+.evidence-link:hover { border-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-scene, .panel-inner, .p-arrow { transition: none; }
+}

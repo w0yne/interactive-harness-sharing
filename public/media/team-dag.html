@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAS→R team — collaboration loop</title>
+<style>
+/* ============================================================================
+ * dag-loop.html — self-contained, auto-looping animation of the SAS→R
+ * clinical-data-team collaboration. Open with a double-click (no server) and
+ * screen-record it; it cycles cleanly. Designed 1280×720 (16:9) for the deck.
+ *
+ * Correct flow (per user): researcher ∥ analyst work TOGETHER during research;
+ * they converge on a single DESIGN; only after design do the two engineers
+ * build in PARALLEL, BOTH taking their task FROM the design; then cross-validate
+ * → report. Palette follows the SPA tokens. No real paths / IDs.
+ * ==========================================================================*/
+:root{
+  --bg:#0c0d11; --bg2:#14161d; --panel:#181a22; --line:#2a2c38;
+  --ink:#e9e7e2; --dim:#8b8b95; --faint:#5a5a63;
+  --accent:#9a72e6; --agent:#4ec98c; --human:#e5b567; --danger:#e0674f;
+  --mono:"JetBrains Mono","SF Mono","Cascadia Code",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden;font-family:var(--mono)}
+.stage{
+  position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%) scale(var(--diagram-scale, 1));
+  transform-origin:center;
+  width:1280px; height:720px; background:
+    radial-gradient(1200px 700px at 70% -10%, rgba(154,114,230,.10), transparent 60%),
+    var(--bg);
+  color:var(--ink); overflow:hidden;
+}
+.hd{position:absolute;top:26px;left:40px;right:40px;display:flex;align-items:baseline;gap:16px}
+.hd .k{font-size:13px;letter-spacing:.14em;color:var(--accent);font-weight:700;text-transform:uppercase}
+.hd .t{font-size:22px;font-weight:700;color:var(--ink)}
+.hd .phase{margin-left:auto;font-size:13px;color:var(--dim)}
+.hd .phase b{color:var(--accent)}
+
+/* band labels for the three tiers */
+.tier{position:absolute;left:40px;font-size:10.5px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+
+.node{
+  position:absolute; border:1.5px solid var(--line); border-radius:14px;
+  background:var(--panel); padding:11px 16px; min-width:150px;
+  transition:border-color .4s, box-shadow .4s, opacity .4s;
+  opacity:.4;
+}
+.node .role{font-size:15px;font-weight:700;color:var(--ink);margin-left:16px}
+.node .sub{font-size:10.5px;color:var(--dim);margin-top:2px;margin-left:16px}
+.node .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);position:absolute;left:14px;top:15px}
+.node.on{opacity:1;border-color:var(--accent);box-shadow:0 0 26px rgba(154,114,230,.28)}
+.node.on .role{color:#fff}
+.node.on .dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.node.human{border-color:var(--human)} .node.human .role{color:var(--human)}
+.node.human.on{box-shadow:0 0 26px rgba(229,181,103,.30)}
+.node.work{opacity:1;border-color:var(--agent);box-shadow:0 0 26px rgba(78,201,140,.26)}
+.node.work .role{color:#fff}
+.node.work .dot{background:var(--agent);box-shadow:0 0 8px var(--agent);animation:pulse 1s infinite}
+.node.gate{opacity:1;border-color:var(--human);box-shadow:0 0 26px rgba(229,181,103,.30)}
+.node.gate .dot{background:var(--human);box-shadow:0 0 8px var(--human);animation:pulse 1s infinite}
+.node.design{border-style:dashed}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+svg.wires{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.edge{fill:none;stroke:var(--line);stroke-width:2}
+.edge.hot{stroke:var(--accent);stroke-width:2.6;filter:drop-shadow(0 0 4px rgba(154,114,230,.6))}
+.edge.green.hot{stroke:var(--agent);filter:drop-shadow(0 0 4px rgba(78,201,140,.6))}
+.edge.collab{stroke-dasharray:5 6}
+.spark{fill:var(--accent);filter:drop-shadow(0 0 6px var(--accent));opacity:0}
+.spark.green{fill:var(--agent);filter:drop-shadow(0 0 6px var(--agent))}
+
+.term{position:absolute;left:40px;right:40px;bottom:32px;height:92px;
+  background:#0f1016;border:1px solid var(--line);border-radius:12px;padding:11px 18px;overflow:hidden}
+.term .bar{display:flex;gap:6px;align-items:center;margin-bottom:7px}
+.term .bar i{width:9px;height:9px;border-radius:50%}
+.term .bar .r{background:#ff5f56}.term .bar .y{background:#ffbd2e}.term .bar .g{background:#27c93f}
+.term .bar .who{margin-left:8px;font-size:11.5px;color:var(--dim)}
+.term .who b{color:var(--ink)}
+.term .ln{font-size:13px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.term .ln .p{color:var(--accent)} .term .ln .ok{color:var(--agent)} .term .ln .err{color:var(--danger)}
+.cursor{display:inline-block;width:8px;height:14px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+
+.caption{position:absolute;left:40px;bottom:142px;font-size:15px;color:var(--ink)}
+.caption b{color:var(--accent)}
+.badge{display:inline-block;font-size:11px;letter-spacing:.08em;color:var(--accent);
+  border:1px solid var(--accent);border-radius:7px;padding:3px 10px;margin-right:12px;font-weight:700}
+.paused .node.work .dot,.paused .node.gate .dot,.paused .cursor{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="hd">
+    <span class="k">Multi-agent</span>
+    <span class="t">SAS→R migration — how the team collaborates</span>
+    <span class="phase" id="phaseLabel"></span>
+  </div>
+
+  <!-- tier labels -->
+  <div class="tier" style="top:104px">dispatch</div>
+  <div class="tier" style="top:194px">research &amp; design — together</div>
+  <div class="tier" style="top:360px">build — parallel</div>
+  <div class="tier" style="top:474px">validate → deliver</div>
+
+  <svg class="wires" viewBox="0 0 1280 720" id="wires">
+    <!-- lead → researcher, lead → analyst -->
+    <path id="e_lead_res"  class="edge" d="M600,142 C500,166 430,172 400,190"></path>
+    <path id="e_lead_ana"  class="edge" d="M680,142 C780,166 850,172 880,190"></path>
+    <!-- researcher ∥ analyst collaborate (horizontal dashed) -->
+    <path id="e_collab"    class="edge collab" d="M540,222 L740,222"></path>
+    <!-- researcher → design, analyst → design (converge to the sync point) -->
+    <path id="e_res_dsn"   class="edge" d="M430,256 C520,282 560,290 590,294"></path>
+    <path id="e_ana_dsn"   class="edge" d="M850,256 C760,282 720,290 690,294"></path>
+    <!-- design → engineer_a, design → engineer_b (BOTH engineers take from design) -->
+    <path id="e_dsn_ea"    class="edge" d="M600,346 C500,364 430,370 400,378"></path>
+    <path id="e_dsn_eb"    class="edge" d="M680,346 C780,364 850,370 880,378"></path>
+    <!-- engineers → cross-validate -->
+    <path id="e_ea_cv"     class="edge green" d="M400,446 C470,474 520,482 555,488"></path>
+    <path id="e_eb_cv"     class="edge green" d="M880,446 C810,474 760,482 725,488"></path>
+    <!-- cross-validate → report -->
+    <path id="e_cv_rep"    class="edge" d="M770,498 C860,498 900,498 935,498"></path>
+    <g id="sparks"></g>
+  </svg>
+
+  <!-- dispatch -->
+  <div class="node human" id="n_lead" style="left:565px;top:96px">
+    <span class="dot"></span><div class="role">lead</div>
+    <div class="sub">opus-4.8 · dispatch &amp; aggregate</div>
+  </div>
+  <!-- research tier -->
+  <div class="node" id="n_res" style="left:290px;top:190px">
+    <span class="dot"></span><div class="role">researcher</div>
+    <div class="sub">sonnet-5 · stack &amp; standards</div>
+  </div>
+  <div class="node" id="n_ana" style="left:770px;top:190px">
+    <span class="dot"></span><div class="role">analyst</div>
+    <div class="sub">sonnet-5 · decode source</div>
+  </div>
+  <!-- design sync point -->
+  <div class="node design" id="n_dsn" style="left:520px;top:288px;min-width:240px">
+    <span class="dot"></span><div class="role">design — the sync point</div>
+    <div class="sub">requirements + design.md · confirmed with lead</div>
+  </div>
+  <!-- build tier -->
+  <div class="node" id="n_ea" style="left:290px;top:378px">
+    <span class="dot"></span><div class="role">engineer_a</div>
+    <div class="sub">sonnet-5 · build wave</div>
+  </div>
+  <div class="node" id="n_eb" style="left:770px;top:378px">
+    <span class="dot"></span><div class="role">engineer_b</div>
+    <div class="sub">sonnet-5 · build wave (parallel)</div>
+  </div>
+  <!-- validate → deliver -->
+  <div class="node" id="n_cv" style="left:550px;top:468px;min-width:220px">
+    <span class="dot"></span><div class="role">cross-validate</div>
+    <div class="sub">each checks the other · match to tolerance</div>
+  </div>
+  <div class="node" id="n_rep" style="left:935px;top:468px;min-width:230px">
+    <span class="dot"></span><div class="role">results report</div>
+    <div class="sub">SAE table + equivalence evidence</div>
+  </div>
+
+  <div class="caption" id="caption"><span class="badge" id="capBadge">PHASE 1</span><span id="capText"></span></div>
+
+  <div class="term">
+    <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i>
+      <span class="who">@<b id="termWho">lead</b> · <span id="termTrust">trust-all</span></span></div>
+    <div class="ln" id="termLine"></div>
+  </div>
+</div>
+
+<script>
+/* phases — note the corrected flow */
+const PH = [
+  { label:'DISPATCH', badge:'PHASE 1',
+    cap:'lead frames the goal and starts <b>research and analysis together</b>.',
+    on:['n_lead','n_res','n_ana'], edges:['e_lead_res','e_lead_ana'],
+    who:'lead', line:['❯ dispatch: @researcher + @analyst — start together', 'p'] },
+  { label:'RESEARCH & ANALYZE — together', badge:'PHASE 1',
+    cap:'researcher and analyst <b>work together</b>: stack + standards, and decoding the SAS source.',
+    on:['n_res','n_ana'], work:['n_res','n_ana'], edges:['e_collab'],
+    who:'researcher', line:['❯ stack: haven / Tplyr / r2rtf · CDISC ADaM conventions · how equivalence is proven', 'ok'] },
+  { label:'RESEARCH & ANALYZE — together', badge:'PHASE 1',
+    cap:'the analyst decodes the source into <b>requirements + acceptance criteria</b>.',
+    on:['n_res','n_ana'], work:['n_ana'], edges:['e_collab'],
+    who:'analyst', line:['❯ read adae.sas · adsl.xpt → requirements.md (EARS)', 'ok'] },
+  { label:'DESIGN — the sync point', badge:'PHASE 2',
+    cap:'research + analysis <b>converge on one design</b> — the single sync point.',
+    on:['n_res','n_ana','n_dsn'], edges:['e_res_dsn','e_ana_dsn'],
+    who:'analyst', line:['❯ design.md: pipeline · module boundaries · correctness properties → confirm with @lead', 'ok'] },
+  { label:'BUILD — both engineers, from the design', badge:'PHASE 3',
+    cap:'only now do the two engineers build — <b>both take their task from the design</b>, in parallel.',
+    on:['n_dsn'], work:['n_ea','n_eb'], edges:['e_dsn_ea','e_dsn_eb'],
+    who:'engineer_a', line:['❯ build ADAE: dates (origin 1960) · TRTEMFL · first-occurrence flags', 'ok'] },
+  { label:'BUILD — parallel, file-disjoint', badge:'PHASE 3',
+    cap:'file-disjoint waves — <b>no shared files</b>, so the two never collide.',
+    on:['n_dsn'], work:['n_ea','n_eb'], edges:['e_dsn_ea','e_dsn_eb'],
+    who:'engineer_b', line:['❯ SAE table 14.5.2: subject/SOC/PT counts + Fisher exact → r2rtf', 'ok'] },
+  { label:'CROSS-VALIDATE', badge:'PHASE 4',
+    cap:'nobody signs off their own work — <b>each engineer checks the other</b>.',
+    work:['n_ea','n_eb'], gate:['n_cv'], edges:['e_ea_cv','e_eb_cv'], green:true,
+    who:'engineer_b', line:['❯ re-implement independently · compare to adae.xpt within tolerance', 'ok'] },
+  { label:'CROSS-VALIDATE — bounded', badge:'PHASE 4',
+    cap:'one review + one fix, then escalate — <b>no infinite ping-pong</b>.',
+    gate:['n_cv'], edges:[], green:true,
+    who:'engineer_a', line:['NEEDS_CHANGES → one fix → PASS   (else escalate to @lead)', 'err'] },
+  { label:'REPORT', badge:'DONE',
+    cap:'out comes a self-contained report — <b>the SAE table + equivalence evidence</b>.',
+    on:['n_rep'], gate:['n_cv'], edges:['e_cv_rep'],
+    who:'lead', line:['❯ report renders · R output matches SAS ✓ · tests green', 'ok'] },
+];
+
+const ALLNODES = ['n_lead','n_res','n_ana','n_dsn','n_ea','n_eb','n_cv','n_rep'];
+const ALLEDGES = ['e_lead_res','e_lead_ana','e_collab','e_res_dsn','e_ana_dsn','e_dsn_ea','e_dsn_eb','e_ea_cv','e_eb_cv','e_cv_rep'];
+const $ = id => document.getElementById(id);
+const sparkG = $('sparks');
+const SVGNS = 'http://www.w3.org/2000/svg';
+let i = 0, sparkAnim = null, phaseTimer = null, playing = false;
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+function classLine(txt, kind){
+  if(kind==='p')  return '<span class="p">'+txt+'</span>';
+  if(kind==='ok') return txt.replace(/(✓)/g,'<span class="ok">$1</span>').replace(/^❯/,'<span class="p">❯</span>');
+  if(kind==='err')return '<span class="err">'+txt+'</span>';
+  return txt;
+}
+/* one spark per hot edge, ALL driven by one shared clock → edges that run in
+ * the same phase (parallel branches) animate in lockstep, not serially. */
+function runSparks(edgeIds, green){
+  if(sparkAnim) cancelAnimationFrame(sparkAnim);
+  sparkG.innerHTML = '';
+  const items = (edgeIds||[]).map(id => $(id)).filter(Boolean).map(path => {
+    const c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('r', 5);
+    c.setAttribute('class', 'spark' + (green ? ' green' : ''));
+    c.style.opacity = 1;
+    sparkG.appendChild(c);
+    return { path, L: path.getTotalLength(), dot: c };
+  });
+  if(!items.length) return;
+  if(!playing || reduced.matches){
+    items.forEach(it => {
+      const pt = it.path.getPointAtLength(it.L / 2);
+      it.dot.setAttribute('cx', pt.x);
+      it.dot.setAttribute('cy', pt.y);
+    });
+    return;
+  }
+  let t0 = null;
+  function frame(ts){
+    if(!t0) t0 = ts;
+    const d = ((ts - t0) / 1400) % 1;      // shared progress for every edge
+    items.forEach(it => {
+      const pt = it.path.getPointAtLength(d * it.L);
+      it.dot.setAttribute('cx', pt.x); it.dot.setAttribute('cy', pt.y);
+    });
+    sparkAnim = requestAnimationFrame(frame);
+  }
+  sparkAnim = requestAnimationFrame(frame);
+}
+function render(){
+  const p = PH[i];
+  document.body.classList.toggle('paused', !playing);
+  ALLNODES.forEach(n=>$(n).classList.remove('on','work','gate'));
+  ALLEDGES.forEach(e=>$(e).classList.remove('hot','green'));
+  (p.on||[]).forEach(n=>$(n).classList.add('on'));
+  (p.work||[]).forEach(n=>$(n).classList.add('work'));
+  (p.gate||[]).forEach(n=>$(n).classList.add('gate'));
+  (p.edges||[]).forEach(e=>{ if(p.green) $(e).classList.add('green'); $(e).classList.add('hot'); });
+  $('phaseLabel').innerHTML = 'phase · <b>'+p.label+'</b>';
+  $('capBadge').textContent = p.badge;
+  $('capText').innerHTML = p.cap;
+  $('termWho').textContent = p.who;
+  $('termLine').innerHTML = classLine(p.line[0], p.line[1]) + '<span class="cursor"></span>';
+  runSparks(p.edges, p.green);   // a spark on EVERY hot edge, in sync
+}
+function notify(){
+  if(parent !== window) parent.postMessage({type:'team-dag-state', phase:i, playing}, location.origin);
+}
+function tick(){ i = (i+1) % PH.length; render(); notify(); }
+function setPlaying(value){
+  clearInterval(phaseTimer);
+  phaseTimer = null;
+  playing = !!value && !reduced.matches;
+  if(playing) phaseTimer = setInterval(tick, 2600);
+  render();
+  notify();
+}
+function fit(){
+  document.documentElement.style.setProperty('--diagram-scale', Math.min(innerWidth / 1280, innerHeight / 720));
+}
+window.addEventListener('message', event => {
+  if(event.source !== parent || event.origin !== location.origin || event.data?.type !== 'team-dag-control') return;
+  const {command, phase} = event.data;
+  if(command === 'phase' && Number.isInteger(phase) && phase >= 0 && phase < PH.length){
+    i = phase;
+    setPlaying(false);
+  }else if(command === 'play') setPlaying(true);
+  else if(command === 'pause') setPlaying(false);
+  else if(command === 'reset'){ i = 0; setPlaying(false); }
+  else if(command === 'state') notify();
+});
+window.addEventListener('resize', fit);
+window.addEventListener('pagehide', () => {
+  clearInterval(phaseTimer);
+  cancelAnimationFrame(sparkAnim);
+});
+document.addEventListener('visibilitychange', () => { if(document.hidden) setPlaying(false); });
+reduced.addEventListener('change', () => setPlaying(false));
+fit();
+setPlaying(false);
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+/* ============================================================================
+ * 设计 token — 黑客帝国 Matrix 冷绿基底 + Claude 陶土暖调点睛;冷→暖 = 人机协同
+ * 颜色全走 CSS 变量(改色零成本)。承自 slides-vue 的配色体系(用户确认保留)。
+ * ==========================================================================*/
+:root {
+  --bg:         #0A0E0A;
+  --bg-deep:    #050705;
+  --matrix:     #00FF41;
+  --matrix-2:   #00cc35;
+  --matrix-dim: #0d3b1e;
+  --matrix-link:#0e8a16;
+  --ink:        #D6E8D6;
+  --ink-soft:   #7fae84;
+  --accent:     #D97757;   /* Claude 陶土,唯一暖强调 */
+  --accent-soft:#E8A07D;
+  --cream:      #F0EEE6;
+  --accent-presence: 0;    /* 暗线:陶土"存在感",随聚焦升温 */
+
+  --mono: "SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,Menlo,Consolas,monospace;
+  --sans: "PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans); line-height: 1.6;
+  overflow: hidden;                  /* 不滚动:导航靠摄像机 */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 代码雨:最底层固定背景(摄像机移动时它不动,作恒定 ambient) */
+#rain { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .10; }
+
+/* 暗线暖色渐入遮罩(固定层,随 --accent-presence 升温) */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 60%,
+    rgba(217,119,87, calc(var(--accent-presence) * 0.13)), transparent 60%);
+}
